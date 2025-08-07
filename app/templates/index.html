@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClarifAI | AI for Social Impact</title>
+    <link rel="stylesheet" href="/templates/style.css">
+    <style>
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+            max-width: 850px;
+            min-width: 600px;
+            width: 100%;
+            background: #111;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(44,62,80,0.10);
+            padding: 0.7rem 0.8rem 0.5rem 0.8rem;
+            margin-bottom: 0.7rem;
+            overflow: hidden;
+        }
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 0.4rem;
+            padding-right: 0.1rem;
+        }
+        .chat-message {
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: flex-end;
+        }
+        .chat-message.user .bubble {
+            background: #4299e1;
+            color: #fff;
+            align-self: flex-end;
+        }
+        .chat-message.ai .bubble {
+            background: #e6fffa;
+            color: #2d3748;
+            align-self: flex-start;
+        }
+        .bubble {
+            padding: 0.8rem 1.2rem;
+            border-radius: 16px;
+            max-width: 70%;
+            font-size: 1.08rem;
+            box-shadow: 0 1px 4px rgba(44,62,80,0.04);
+        }
+        .input-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            justify-content: center;
+            flex-direction: row;
+        }
+        .input-row input[type="text"] {
+            flex: 0 1 180px;
+            margin-bottom: 0;
+            width: 120px;
+            max-width: 100%;
+            transition: width 0.35s cubic-bezier(.4,2,.6,1), box-shadow 0.2s;
+        }
+        .input-row input[type="text"].expanded {
+            width: 100%;
+            box-shadow: 0 0 12px #4299e1cc;
+        }
+        .input-row button {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header floating-header">
+        <span class="brand">ClarifAI</span>
+        <span style="font-size:10px; font-weight:400; margin-left:0.5rem; padding: 0px 15px 0px 15px;"></span>
+        <label class="switch" style="margin-left: -8px;" title="Toggle light/dark mode">
+            <input type="checkbox" id="theme-toggle">
+            <span class="slider round"></span>
+        </label>
+    </div>
+        <div class="chat-container">
+            <div class="chat-history" id="chat-history">
+                <!-- Chat messages will appear here -->
+            </div>
+        <form id="ask-form" autocomplete="off">
+            <div class="input-row">
+                <div class="input-area">
+                    <span class="input-icon" aria-hidden="true">
+                        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="11" cy="11" r="10" fill="#0fffc3" fill-opacity="0.18"/>
+                            <path d="M7 11.5L10 14.5L15 9.5" stroke="#0fffc3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <textarea id="question" name="question" placeholder="Type your message..." required autofocus rows="1"></textarea>
+                </div>
+                <button type="submit">Send</button>
+            </div>
+        </form>
+        </div>
+        <div style="margin-top:1rem;">
+            <h3>Sample Prompts</h3>
+            <ul style="color:#4299e1;">
+                <li>Suggest ways to personalize learning using AI.</li>
+                <li>How can AI improve community health monitoring?</li>
+                <li>Ideas for accessible education tools with AI.</li>
+            </ul>
+        </div>
+    </div>
+    <div class="footer">
+        &copy; 2025 ClarifAI | Empowering Social Good with AI
+    </div>
+    <script>
+        // Chat logic
+        const chatHistory = document.getElementById('chat-history');
+        function addMessage(text, sender) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'chat-message ' + sender;
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.innerText = text;
+            msgDiv.appendChild(bubble);
+            chatHistory.appendChild(msgDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+        const input = document.getElementById('question');
+        input.addEventListener('input', function() {
+            this.style.height = 'auto';
+            // Only expand up to max-height (120px), then allow scroll
+            const maxHeight = 120;
+            if (this.scrollHeight <= maxHeight) {
+                this.style.height = this.scrollHeight + 'px';
+            } else {
+                this.style.height = maxHeight + 'px';
+            }
+        });
+        input.addEventListener('focus', function() {
+            input.classList.add('expanded');
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+        input.addEventListener('blur', function() {
+            if (!input.value) input.classList.remove('expanded');
+            this.style.height = '2.5rem';
+        });
+        document.getElementById('ask-form').onsubmit = async function(e) {
+            e.preventDefault();
+            input.classList.remove('expanded');
+            const question = input.value.trim();
+            if (!question) return;
+            addMessage(question, 'user');
+            input.value = '';
+            addMessage('Thinking...', 'ai');
+            const res = await fetch('/api/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question })
+            });
+            const data = await res.json();
+            // Remove the last 'Thinking...' message
+            const aiThinking = chatHistory.querySelector('.chat-message.ai:last-child');
+            if (aiThinking && aiThinking.querySelector('.bubble').innerText === 'Thinking...') {
+                chatHistory.removeChild(aiThinking);
+            }
+            addMessage(data.response, 'ai');
+        };
+
+        // Theme toggle logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+        // Save theme preference
+        function setTheme(dark) {
+            if (dark) {
+                body.classList.add('dark-theme');
+                body.classList.remove('light-theme');
+                localStorage.setItem('clarifai-theme', 'dark');
+            } else {
+                body.classList.add('light-theme');
+                body.classList.remove('dark-theme');
+                localStorage.setItem('clarifai-theme', 'light');
+            }
+        }
+        // On toggle
+        themeToggle.addEventListener('change', function() {
+            setTheme(this.checked);
+        });
+        // On load, set theme from storage
+        (function() {
+            const saved = localStorage.getItem('clarifai-theme');
+            if (saved === 'light') {
+                themeToggle.checked = false;
+                setTheme(false);
+            } else {
+                themeToggle.checked = true;
+                setTheme(true);
+            }
+        })();
+    </script>
+</body>
+</html>
