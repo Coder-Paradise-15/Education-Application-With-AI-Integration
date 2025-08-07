@@ -5,6 +5,7 @@ from io import BytesIO
 from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments, TextDataset, DataCollatorForLanguageModeling
 import psutil
 from werkzeug.utils import secure_filename
+from datasets import load_dataset
 
 # --- CONFIG ---
 model_name = "microsoft/DialoGPT-small"
@@ -137,16 +138,31 @@ def system_stats():
     }
     return jsonify(stats)
 
-# Load your own text file (each conversation in one line)
-train_dataset = TextDataset(
+# Load pre-trained tokenizer and model
+tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-small")
+model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-small")
+
+# Set pad_token if not already set
+if tokenizer.pad_token is None:
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    model.resize_token_embeddings(len(tokenizer))
+
+# Load your dataset (assumes a text file with one line per training example)
+data_files = {"train": "/workspaces/Education-Application-With-AI-Integration/app/modules/dataset.txt"}  # Make sure this file exists
+raw_datasets = load_dataset("text", data_files=data_files)
+
+# Tokenize dataset
+def tokenize_function(examples):
+    return tokenizer(examples["text"], truncation=True, padding=True)
+
+tokenized_datasets = raw_datasets.map(tokenize_function, batched=True, remove_columns=["text"])
+
+# Data collator for language modeling
+data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,
-    file_path="/workspaces/Education-Application-With-AI-Integration/app/modules/module.txt",  # your dataset path
-    block_size=128,
+    mlm=False  # No masked language modeling; we want causal LM like GPT
 )
 
-data_collator = DataCollatorForLanguageModeling(
-    tokenizer=tokenizer, mlm=False,
-)    
 
 # --- MAIN ---
 if __name__ == '__main__':
