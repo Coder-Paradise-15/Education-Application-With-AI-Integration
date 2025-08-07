@@ -2,11 +2,14 @@ import os
 import requests
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from io import BytesIO
-from transformers import pipeline
+from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments, TextDataset, DataCollatorForLanguageModeling
 import psutil
 from werkzeug.utils import secure_filename
 
 # --- CONFIG ---
+model_name = "microsoft/DialoGPT-small"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
 AI_MODE = 'local'  # 'local' or 'api'
 HF_API_MODEL = "microsoft/DialoGPT-small"
 HF_TOKEN_FILE = os.path.join(os.path.dirname(__file__), 'templates', 'huggingface.txt')
@@ -133,6 +136,17 @@ def system_stats():
         'loadavg': os.getloadavg() if hasattr(os, 'getloadavg') else None
     }
     return jsonify(stats)
+
+# Load your own text file (each conversation in one line)
+train_dataset = TextDataset(
+    tokenizer=tokenizer,
+    file_path="/workspaces/Education-Application-With-AI-Integration/app/modules/module.txt",  # your dataset path
+    block_size=128,
+)
+
+data_collator = DataCollatorForLanguageModeling(
+    tokenizer=tokenizer, mlm=False,
+)    
 
 # --- MAIN ---
 if __name__ == '__main__':

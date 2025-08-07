@@ -1,0 +1,12 @@
+{
+  "dialog": [
+    {
+      "input": "Hi there!",
+      "response": "Hello! How can I help you today?"
+    },
+    {
+      "input": "What’s 2 + 2?",
+      "response": "It’s 4. Easy math!"
+    }
+  ]
+}
